@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Warning OAuth error!</title>
+</head>
+<body>
+    <h1>An OAuth error occured</h1>
+    <p>The error type is: {{ response[0] }}</p>
+    <p>The error content is: {{ response[1] }}</p>
+    <p>Please check your process and try again.</p>
+    <p>Please <button><a href="http://localhost:5000/shutdown">Close the App</a></button> before trying again.</p>
+</body>
+</html>

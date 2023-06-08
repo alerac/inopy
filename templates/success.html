@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Success!</title>
+</head>
+<body>
+    <h1>Bearer token sucessfully obtained!</h1>
+    <p>New bearer is: {{ response[0] }}</p>
+    <p>New refresh token is: {{ response[1] }}</p>
+    <p>Both items were renewed in the config file.</p>
+    <p>Please <button><a href="http://localhost:5000/shutdown">Close the App</a></button> now!</p>
+</body>
+</html>
