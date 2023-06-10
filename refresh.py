@@ -26,33 +26,23 @@
 
 import requests
 import json
-import configparser
-
-# Initialize a ConfigParser object
-config = configparser.ConfigParser()
-
-# Read the configuration file 'config.ini'
-config.read('config.ini')
-
-# Get the 'endpoint' value from the 'Oauth' section in the configuration file
-url = config.get('Oauth', 'endpoint')
-
-# Prepare the payload for the request
-payload = {
-	"client_id": config.get('Oauth', 'client_id'),
-	"client_secret": config.get('Oauth', 'client_secret'),
-	"grant_type": "refresh_token",
-	"refresh_token": config.get('Oauth', 'refresh_token')
-}
-
-# Set the headers for the request
-headers = {"Content-type": "application/x-www-form-urlencoded"}
 
 # Define a function named 'refresh' that handles the token refresh logic
-def refresh():
+def refresh(config_path, endpoint, client_id, client_secret, refresh_token):
+
+	# Set the headers for the request
+	headers = {"Content-type": "application/x-www-form-urlencoded"}
+
+	# Prepare the payload for the request
+	payload = {
+		"client_id": client_id,
+		"client_secret": client_secret,
+		"grant_type": "refresh_token",
+		"refresh_token": refresh_token
+	}
 	
 	# Send a POST request to the specified URL with the payload and headers
-	response = requests.post(url, data=payload, headers=headers)
+	response = requests.post(endpoint, data=payload, headers=headers)
 
 	# Check the response status code
 	if response.status_code == 200:
@@ -67,9 +57,17 @@ def refresh():
 	refreshed_bearer = data['access_token']
 	new_refresh_token = data['refresh_token']
 
-	'''
-		Return the refreshed bearer token and the new refresh token 
-		in order to use it in the replace() function of the main
-		ino.py module.
-	'''
-	return (refreshed_bearer, new_refresh_token)
+	with open(config_path, 'r+') as config_file:
+		# Load the JSON data from the file
+		config = json.load(config_file)
+
+		# Update the token value in the config data
+		config['oauth']['bearer'] = refreshed_bearer
+		config['oauth']['refresh_token'] = new_refresh_token
+
+		# Move the file pointer back to the beginning of the file
+		config_file.seek(0)
+
+		# Write the updated config data to the file
+		json.dump(config, config_file, indent=4)
+		config_file.truncate()
