@@ -30,20 +30,13 @@
 
 import requests
 import json
-import configparser
-import refresh
 import notif
 import time
 import sys
+import os
+from config import config
 from test2 import app, run_app
-
-# Configuration parser for reading the config file
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-# Initiate Summary and message for the notification
-summary = config.get('Notification', 'summary')
-message = ""
+from refresh import refresh
 
 """
 	Read the configuration file.
@@ -56,12 +49,11 @@ message = ""
 	and send a GET request to the API.
 """
 
-def APIrequest(endpoint):
-	bearer = config.get('Oauth', 'bearer')
+def APIrequest(url, bearer):
 	bearer_string = 'Bearer {}'.format(bearer)
 	headers = {'Authorization': bearer_string}
-	url = config.get('InoAPI', endpoint)
 	response = requests.get(url, headers=headers)
+	print(response.status_code)
 	return response
 
 # Parse the response as JSON
@@ -75,15 +67,22 @@ def getData(response):
 	in the config
 """
 
-def replace():
-	(refreshed_bearer, new_refresh_token) = refresh.refresh()
-	config.set('Oauth', 'bearer', refreshed_bearer)
-	config.set('Oauth', 'refresh_token', new_refresh_token)
-	with open('config.ini', 'w') as config_file:
-		config.write(config_file)
+message = ""
+config = config()
+
+bearer = config['bearer']
+unread_counts_url = config['unread_counts_url']
+feeds_list_url = config['feeds_list_url']
+config_path = config['config_file_path']
+endpoint = config['endpoint']
+client_id = config['client_id']
+client_secret = config['client_secret']
+refresh_token = config['refresh_token']
+summary = config['summary']
+
 
 # Make a request to get unread counts
-unread_response = APIrequest('unread_counts_url')
+unread_response = APIrequest(unread_counts_url, bearer)
 
 """
 	If unauthorized (401) status code
@@ -91,14 +90,27 @@ unread_response = APIrequest('unread_counts_url')
 	and make a new request with the updated token.
 """
 
-if unread_response.status_code == 401:
-	replace()
-	unread_response = APIrequest('unread_counts_url')
-
-elif unread_response.status_code == 403:
+if unread_response.status_code == 403:
+	print(unread_response.status_code)
 	run_app()
-	config.read('config.ini')
-	unread_response = APIrequest('unread_counts_url')
+	#new_config = config()
+	#bearer = new_config['bearer']
+	with open(config_path) as config_file:
+		new_config = json.load(config_file)
+	bearer = new_config['oauth']['bearer']
+	print(bearer)
+	unread_response = APIrequest(unread_counts_url, bearer)
+	print(unread_response.text)
+
+elif unread_response.status_code == 401:
+	refresh(config_path, endpoint, client_id, client_secret, refresh_token)
+	#new_config = config()
+	#bearer = new_config['bearer']
+	with open(config_path) as config_file:
+		new_config = json.load(config_file)
+	bearer = new_config['oauth']['bearer']
+	print(bearer)
+	unread_response = APIrequest(unread_counts_url, bearer)
 
 elif unread_response.status_code == 200:
 	pass
@@ -109,7 +121,7 @@ elif unread_response.status_code == 200:
 	Parse the unread counts data
 """
 
-feeds_list_response = APIrequest('feeds_list_url')
+feeds_list_response = APIrequest(feeds_list_url, bearer)
 print(feeds_list_response)
 feeds_list_data = getData(feeds_list_response)
 unread_data = getData(unread_response)
@@ -155,9 +167,9 @@ for item in unread_data['unreadcounts']:
 		"""
 
 		if count == 1:
-			new_articles = config.get('Notification', 'singular_article')
+			new_articles = config['singular_article']
 		else:
-			new_articles = config.get('Notification', 'plural_articles')
+			new_articles = config['plural_articles']
 		count = str(count)
 		message = message + count + " " + new_articles + " " + ID + "\n"
 	else:
