@@ -118,10 +118,11 @@ def shutdown():
     
     serve(app, host=host, port=port)'''
 
+# Function to start the Flask server
+def start_server():
+    serve(app, host=host, port=port)
+
 def run_prod():
-    # Function to start the Flask server
-    def start_server():
-        serve(app, host=host, port=port)
 
     # Create a new thread for the Flask server
     server_thread = threading.Thread(target=start_server)
@@ -138,7 +139,19 @@ def run_prod():
     # Launch Firefox with the new profile and open the URL
     subprocess.run([browser_path, "-P", "new_profile", "-no-remote", home_url])
 
+def run_dev():
 
+    # Create a new thread for the Flask server
+    server_thread = threading.Thread(target=start_server)
+
+    # Start the Flask server thread
+    server_thread.start()
+
+    # Wait for the Flask server to start (adjust the delay as needed)
+    time.sleep(2)
+
+    webbrowser.open(home_url)
+    app.run()
 
 def run_app():
 
@@ -147,8 +160,7 @@ def run_app():
         run_prod()
     else:
         print(prod_status)
-        webbrowser.open(home_url)
-        app.run()
+        run_dev()
 
 if __name__ == '__main__':
     #app.run()

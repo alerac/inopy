@@ -35,7 +35,7 @@ import time
 import sys
 import os
 from config import config
-from test2 import app, run_app
+from oauth import app, run_app
 from refresh import refresh
 
 """
@@ -79,7 +79,14 @@ client_id = config['client_id']
 client_secret = config['client_secret']
 refresh_token = config['refresh_token']
 summary = config['summary']
+singular_article = config['singular_article']
+plural_articles = config['plural_articles']
+singular_article = config['singular_article']
+plural_articles = config['plural_articles']
 
+unreadcounts = {}
+subscriptions = {}
+categories = []
 
 # Make a request to get unread counts
 unread_response = APIrequest(unread_counts_url, bearer)
@@ -129,49 +136,42 @@ print(feeds_list_data)
 print('\n\n')
 print(unread_data)
 
-for item in unread_data['unreadcounts']:
+for unread in unread_data['unreadcounts']:
 	
-	# Get the count of unread items
-	count = int(item['count'])
+	unread['count'] = int(unread['count'])
+	if unread['count'] > 0:
+		unreadcounts[unread['id']] = unread['count']
 
-	# If there are unread items
-	# get the ID of the items
+for subscribed in feeds_list_data['subscriptions']:
 	
-	if count > 0:
-		ID = item['id']
-		
-		"""
-			Loop through the feeds subscriptions.
-			If the ID of unread feed is found in
-			subscriptions (feeds), update ID with
-			the feed title. Otherwise, extract the
-			last part of the ID.
+	if subscribed['categories']:
+		if subscribed['categories'][0]['id'] not in categories:
+			categories.append(subscribed['categories'][0]['id'])
+	
+	subscriptions[subscribed['id']] = subscribed['title']
 
-			This is because Inoreader feeds IDs are not
-			human friendly labels.
-		"""
+for unread_id, count in unreadcounts.items():
+	
+	if count == 1:
+		new_articles = singular_article
+	else:
+		new_articles = plural_articles
+	
+	count = str(count)
+	
+	if not unread_id in categories:
+		if unread_id.split("/")[-1] == "reading-list":
+				
+			pass
 
-		for item in feeds_list_data['subscriptions']:
-			if ID in item['id']:
-				ID = item['title']
-			else:
-				ID = ID.split("/")[-1]
-
-		"""
-			Use singular or plural forms
-			depending on number of unread
-			articles.
-
-			Convert count to string and
-			format the message.
-		"""
-
-		if count == 1:
-			new_articles = config['singular_article']
 		else:
-			new_articles = config['plural_articles']
-		count = str(count)
-		message = message + count + " " + new_articles + " " + ID + "\n"
+
+			if unread_id in (k for k,v in subscriptions.items()):
+				title = next(v for k, v in subscriptions.items() if k == unread_id) 
+			else:
+				title = unread_id.split("/")[-1]
+
+			message = message + count + " " + new_articles + " " + title + "\n"
 	else:
 		pass
 
