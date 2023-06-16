@@ -1,4 +1,6 @@
 """
+=========================================================================================
+	
 	Copyright © 2023 Alexandre Racine <https://alex-racine.ch>
 
 	This file is part of Inopy.
@@ -9,31 +11,57 @@
 
 	You should have received a copy of the GNU General Public License along with Inopy. If not, see <https://www.gnu.org/licenses/>.
 
-	-------------------------------------------------------------------------------------
+=========================================================================================
 
 	DISCLAIMER: parts of this code and comments blocks were created
 	with the help of ChatGPT developped by OpenAI <https://openai.com/>
 	Followed by human reviewing, refactoring and fine-tuning.
 
-	-------------------------------------------------------------------------------------
+=========================================================================================
 
-	This code uses the values from the configuration file to construct a request payload. 
+	The aim of this module is to refresh both OAuth 2.0 access and refresh tokens and update the configuration file with the refreshed tokens.
 
-	The refresh function sends a POST request to the Inoreader OAuth endpoint <https://www.inoreader.com/developers/oauth> using the payload and headers to handle the refresh token process.
-
-	Then it extracts the refreshed bearer token and the new refresh token in order to use it in the replace() function of the main ino.py module.
+=========================================================================================
 """
+
+'''
+=====================================================
+	Create a refresh function to refresh the bearer
+	and refresh token in the config data
+
+	*	Set the headers and prepare the payload
+		data for the HTTP request
+
+	*	Send a POST request to the specified
+		endpoint with the payload and headers
+	
+	*	Check the response status code to determine
+		if the request was successful
+	
+	*	Parse the response data as JSON and extract
+		the refreshed bearer token and new refresh
+		token from the response data
+	
+	*	Open the config file. Load the existing
+		config data from the file and update the
+		bearer token and refresh token in the config
+		data
+	
+	*	Move the file pointer to the beginning of
+		the file, write the updated config data back
+		to the file, overwriting the existing content
+	
+	*	Truncate the file to remove any remaining
+		content after the updated data
+=====================================================
+'''
 
 import requests
 import json
 
-# Define a function named 'refresh' that handles the token refresh logic
 def refresh(config_path, endpoint, client_id, client_secret, refresh_token):
-
-	# Set the headers for the request
 	headers = {"Content-type": "application/x-www-form-urlencoded"}
-
-	# Prepare the payload for the request
+	
 	payload = {
 		"client_id": client_id,
 		"client_secret": client_secret,
@@ -41,33 +69,25 @@ def refresh(config_path, endpoint, client_id, client_secret, refresh_token):
 		"refresh_token": refresh_token
 	}
 	
-	# Send a POST request to the specified URL with the payload and headers
 	response = requests.post(endpoint, data=payload, headers=headers)
-
-	# Check the response status code
+	
 	if response.status_code == 200:
 		print("Request was successful.")
+	
 	else:
 		print("Request failed with status code:", response.status_code)
-
-	# Parse the response data as JSON
+	
 	data = json.loads(response.text)
 
-	# Extract the refreshed bearer token and new refresh token from the response data
 	refreshed_bearer = data['access_token']
 	new_refresh_token = data['refresh_token']
 
 	with open(config_path, 'r+') as config_file:
-		# Load the JSON data from the file
 		config = json.load(config_file)
 
-		# Update the token value in the config data
 		config['oauth']['bearer'] = refreshed_bearer
 		config['oauth']['refresh_token'] = new_refresh_token
 
-		# Move the file pointer back to the beginning of the file
 		config_file.seek(0)
-
-		# Write the updated config data to the file
 		json.dump(config, config_file, indent=4)
 		config_file.truncate()
