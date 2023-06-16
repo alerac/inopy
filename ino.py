@@ -1,4 +1,6 @@
 """
+=========================================================================================
+	
 	Copyright © 2023 Alexandre Racine <https://alex-racine.ch>
 
 	This file is part of Inopy.
@@ -9,13 +11,13 @@
 
 	You should have received a copy of the GNU General Public License along with Inopy. If not, see <https://www.gnu.org/licenses/>.
 
-	-------------------------------------------------------------------------------------
+=========================================================================================
 
 	DISCLAIMER: parts of this code and comments blocks were created
 	with the help of ChatGPT developped by OpenAI <https://openai.com/>
 	Followed by human reviewing, refactoring and fine-tuning.
 
-	-------------------------------------------------------------------------------------
+=========================================================================================
 
 	Inopy retrieves unread articles from the Inoreader API <https://www.inoreader.com/developers> and sends a notification if there are any unread articles.
 
@@ -26,48 +28,51 @@
 	Inopy is structured into functions and modules for making API requests, parsing response data, refreshing tokens and sending notifications.
 
 	For more information about OAuth authentication, plase see <https://www.inoreader.com/developers/oauth>
+
+=========================================================================================
 """
 
 import requests
 import json
 import notif
-import time
-import sys
-import os
 from config import config
 from oauth import app, run_app
 from refresh import refresh
 
-"""
-	Read the configuration file.
-
-	Get the bearer token from the config
-	and set it accordingly to Inoreader API
-	specifications.
-
-	Get the API endpoint URL from the config
-	and send a GET request to the API.
-"""
+'''
+===========================================
+	Define functions to make an API request
+	with bearer token and parse response
+	data as JSON
+===========================================
+'''
 
 def APIrequest(url, bearer):
 	bearer_string = 'Bearer {}'.format(bearer)
 	headers = {'Authorization': bearer_string}
 	response = requests.get(url, headers=headers)
-	print(response.status_code)
 	return response
 
-# Parse the response as JSON
 def getData(response):
 	data = json.loads(response.text)
 	return data
 
-"""
-	Refresh the bearer token if it expired.
-	Update the bearer and refresh token
-	in the config
-"""
+'''
+===================================
+	Initialize an empty message
+	string for the notification
+===================================
+'''
 
 message = ""
+
+'''
+===========================================
+	Load configuration settings and
+	retrieve necessary configuration values
+===========================================
+'''
+
 config = config()
 
 bearer = config['bearer']
@@ -81,102 +86,177 @@ refresh_token = config['refresh_token']
 summary = config['summary']
 singular_article = config['singular_article']
 plural_articles = config['plural_articles']
-singular_article = config['singular_article']
-plural_articles = config['plural_articles']
+
+'''
+=========================================
+	Create dictionaries and list to store
+	unread counts, subscriptions and feed
+	categories (folders)
+=========================================
+'''
 
 unreadcounts = {}
 subscriptions = {}
 categories = []
 
-# Make a request to get unread counts
+# Make API request to get unread counts
 unread_response = APIrequest(unread_counts_url, bearer)
 
-"""
-	If unauthorized (401) status code
-	is received, refresh the bearer token
-	and make a new request with the updated token.
-"""
+'''
+===================================================
+	If the response status code is 403 (Forbidden):
 
+	*	Run the Flask app to get a bearer token
+	
+	*	Load the updated configuration file
+	
+	*	Update the bearer token with the new value
+		from the updated config and make a new API
+		request with the updated bearer token
+===================================================
+'''
+
+'''
+======================================================
+	If the response status code is 401 (Unauthorized):
+	
+	*	Refresh the bearer token
+	
+	*	Load the updated configuration file
+	
+	*	Update the bearer token with the new value
+		from the updated config and make a new API
+		request with the updated bearer token
+======================================================
+'''
+
+'''
+============================================
+	If the response status code is 200 (OK):
+
+	*	proceed with the code execution
+============================================
+'''
+
+# Check for 403 error case
 if unread_response.status_code == 403:
-	print(unread_response.status_code)
-	run_app()
-	#new_config = config()
-	#bearer = new_config['bearer']
+	run_app()	
+
 	with open(config_path) as config_file:
 		new_config = json.load(config_file)
-	bearer = new_config['oauth']['bearer']
-	print(bearer)
-	unread_response = APIrequest(unread_counts_url, bearer)
-	print(unread_response.text)
 
+	bearer = new_config['oauth']['bearer']
+
+	unread_response = APIrequest(unread_counts_url, bearer)
+
+# Check for 401 error case
 elif unread_response.status_code == 401:
 	refresh(config_path, endpoint, client_id, client_secret, refresh_token)
-	#new_config = config()
-	#bearer = new_config['bearer']
+
 	with open(config_path) as config_file:
 		new_config = json.load(config_file)
+
 	bearer = new_config['oauth']['bearer']
-	print(bearer)
+	
 	unread_response = APIrequest(unread_counts_url, bearer)
 
+# Proceed with the code execution
 elif unread_response.status_code == 200:
 	pass
-	
-"""
-	Get the list of feeds
-	Parse the response data
-	Parse the unread counts data
-"""
 
+# Make API request to get feeds list
 feeds_list_response = APIrequest(feeds_list_url, bearer)
-print(feeds_list_response)
+
+'''
+=======================================
+	Parse the responses data as JSON
+	
+	Iterate over the unread counts and
+	subscriptions and store them in the
+	respective dictionaries
+
+	If the subscription has categories
+	(is part of a folder) append the
+	category in the categories list
+=======================================
+'''
+
 feeds_list_data = getData(feeds_list_response)
 unread_data = getData(unread_response)
-print(feeds_list_data)
-print('\n\n')
-print(unread_data)
 
 for unread in unread_data['unreadcounts']:
-	
 	unread['count'] = int(unread['count'])
 	if unread['count'] > 0:
 		unreadcounts[unread['id']] = unread['count']
 
 for subscribed in feeds_list_data['subscriptions']:
-	
 	if subscribed['categories']:
 		if subscribed['categories'][0]['id'] not in categories:
 			categories.append(subscribed['categories'][0]['id'])
 	
 	subscriptions[subscribed['id']] = subscribed['title']
 
+'''
+==================================================
+	Iterate over the unreadcounts dictionary
+	
+	Determine the appropriate singular or
+	plural notification label based on the
+	count (e.g. new article or new articles)
+
+	Include the unread feed in the notification
+	only if it is not in the categories list.
+	This is to avoid duplicates notifications
+	for the unread feed and the folder in which
+	the feed is.
+
+	Do not include the reading-list in the
+	notification
+	
+	If the unread_id exists in the subscriptions
+	dictionary, get the title associated with it.
+	Else extract the title from the unread_id.
+
+	Finally append the count, new_articles label
+	and title to the message string
+==================================================
+'''
+
 for unread_id, count in unreadcounts.items():
-	
-	if count == 1:
-		new_articles = singular_article
-	else:
-		new_articles = plural_articles
-	
+
+	# Determine singular or plural notification label
+	new_articles = singular_article if count == 1 else plural_articles
 	count = str(count)
-	
+
+	# Do not include the categories and the reading-list in the notification
 	if not unread_id in categories:
 		if unread_id.split("/")[-1] == "reading-list":
-				
 			pass
-
+		
 		else:
-
+		
+			# Get the clean feed title
 			if unread_id in (k for k,v in subscriptions.items()):
-				title = next(v for k, v in subscriptions.items() if k == unread_id) 
+				title = next(v for k, v in subscriptions.items() if k == unread_id)
+			
 			else:
 				title = unread_id.split("/")[-1]
-
+		
+			# Build the final notification message
 			message = message + count + " " + new_articles + " " + title + "\n"
 	else:
 		pass
 
-# Send notification if message is not empty.
+'''
+====================================
+	Send the notification for unread
+	feeds only if the message string
+	is set
+====================================
+'''
+
 if message != "":
 	notif.send_notification(summary, message)
+
 else:
 	pass
