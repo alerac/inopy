@@ -25,7 +25,7 @@
 
 	It performs token refreshing process if the API request returns an unauthorized status code.
 
-	Inopy is structured into functions and modules for making API requests, parsing response data, refreshing tokens and sending notifications.
+	Inopy is structured into functions and modules for making API requests, parsing response data, refreshing tokens, sending notifications and logging the processes.
 
 	For more information about OAuth authentication, plase see <https://www.inoreader.com/developers/oauth>
 
@@ -35,9 +35,14 @@
 import requests
 import json
 import notif
+import logging
 from config import config
-from oauth import app, run_app
+from oauth import run_app
 from refresh import refresh
+from logs import LogFile
+
+# Set logs file
+log_file = LogFile()
 
 '''
 ===========================================
@@ -100,7 +105,12 @@ subscriptions = {}
 categories = []
 
 # Make API request to get unread counts
-unread_response = APIrequest(unread_counts_url, bearer)
+
+try:
+	unread_response = APIrequest(unread_counts_url, bearer)
+
+except Exception as e:
+	logging.debug(e)
 
 '''
 ===================================================
@@ -138,34 +148,47 @@ unread_response = APIrequest(unread_counts_url, bearer)
 ============================================
 '''
 
-# Check for 403 error case
-if unread_response.status_code == 403:
-	run_app()	
+try:
 
-	with open(config_path) as config_file:
-		new_config = json.load(config_file)
+	# Check for 403 error case
+	if unread_response.status_code == 403:
+		logging.info('Token not available: starting oauth process...')
+		run_app()
 
-	bearer = new_config['oauth']['bearer']
+		with open(config_path) as config_file:
+			new_config = json.load(config_file)
 
-	unread_response = APIrequest(unread_counts_url, bearer)
+		bearer = new_config['oauth']['bearer']
 
-# Check for 401 error case
-elif unread_response.status_code == 401:
-	refresh(config_path, endpoint, client_id, client_secret, refresh_token)
+		unread_response = APIrequest(unread_counts_url, bearer)
 
-	with open(config_path) as config_file:
-		new_config = json.load(config_file)
+	# Check for 401 error case
+	elif unread_response.status_code == 401:
+		logging.info('Token expired: starting refresh process...')
+		refresh(config_path, endpoint, client_id, client_secret, refresh_token)
 
-	bearer = new_config['oauth']['bearer']
-	
-	unread_response = APIrequest(unread_counts_url, bearer)
+		with open(config_path) as config_file:
+			new_config = json.load(config_file)
 
-# Proceed with the code execution
-elif unread_response.status_code == 200:
-	pass
+		bearer = new_config['oauth']['bearer']
+		
+		unread_response = APIrequest(unread_counts_url, bearer)
+
+	# Proceed with the code execution
+	elif unread_response.status_code == 200:
+		logging.info('API request ok: retrieving data...')
+		pass
+
+except Exception as e:
+	logging.debug(e)
 
 # Make API request to get feeds list
-feeds_list_response = APIrequest(feeds_list_url, bearer)
+
+try:
+	feeds_list_response = APIrequest(feeds_list_url, bearer)
+
+except Exception as e:
+	logging.debug(e)
 
 '''
 =======================================
@@ -255,8 +278,14 @@ for unread_id, count in unreadcounts.items():
 ====================================
 '''
 
-if message != "":
-	notif.send_notification(summary, message)
+try:
+	if message != "":
+		notif.send_notification(summary, message)
+		logging.info('Notification successfully sent!')
 
-else:
-	pass
+	else:
+		logging.info('No unread articles. Notification not sent.')
+		pass
+
+except Exception as e:
+	logging.debug(e)

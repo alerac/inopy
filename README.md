@@ -11,7 +11,7 @@ Inopy is a Python application that retrieves unread articles from the [Inoreader
 
 ## Overview
 
-It uses OAuth authentication for accessing the [API](https://www.inoreader.com/developers) and stores the authentication data in a JSON configuration file located at `/HOME/USER/.config/inopy/config.json`. The program is divided into multiple modules and functions for making API requests, parsing response data, refreshing tokens, and sending notifications.
+It uses OAuth authentication for accessing the [API](https://www.inoreader.com/developers) and stores the authentication data in a JSON configuration file located at `/HOME/USER/.inopy/config/config.json`. The program is divided into multiple modules and functions for making API requests, parsing response data, refreshing tokens, sending notifications and logging the processes.
 
 The code is organized into the following modules:
 
@@ -20,6 +20,7 @@ The code is organized into the following modules:
 - `oauth.py`: Implements the OAuth authentication flow using Flask.
 - `refresh.py`: Contains a `refresh` function for refreshing OAuth access and refresh tokens and updating the configuration file.
 - `notif.py`: Provides a function for sending notifications using D-Bus (only tested with Cinnamon desktop environment).
+- `logs.py`: Defines logging options.
 
 ## Installation
 
@@ -39,7 +40,7 @@ pip install requests pydbus flask waitress
 
 ## Usage
 
-The first time `ino.py` module is run, it will check if `config.json` exists in `/HOME/USER/.config/inopy/`. If not it will prompt user for configuration details and create the `config.json` file. The file should contain the OAuth endpoint, client ID, client secret, callback URL, scope, CSRF value and home URL.
+The first time `ino.py` module is run, it will check if `config.json` exists in `/HOME/USER/.inopy/config/`. If not it will prompt user for configuration details and create the `config.json` file. The file should contain the OAuth endpoint, client ID, client secret, callback URL, scope, CSRF value and home URL.
 
 It should also contain the Inoreader API endpoints, notification labels, production status, browser path, host and port.
 

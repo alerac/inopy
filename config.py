@@ -32,6 +32,11 @@
 
 import json
 import os
+import logging
+from logs import LogFile
+
+# Set logs file
+log_file = LogFile()
 
 '''
 ================================================================
@@ -51,8 +56,10 @@ import os
 def get_config(config_path, config_file_path):
 	
 	if os.path.exists(config_path):
+		logging.info(f'Found config directory at {config_path}')
 		
 		if os.path.exists(config_file_path):
+			logging.info(f'Found config file at {config_file_path}!')
 			pass
 		
 		else:
@@ -64,7 +71,8 @@ def get_config(config_path, config_file_path):
 
 		# If the config directory doesn't exist, create it
 		os.mkdir(config_path)
-		print(f'{config_path} created!')
+		logging.info(f'{config_path} created!')
+
 		create_file(config_file_path)
 	
 	# load config content
@@ -167,7 +175,8 @@ def create_file(config_file_path):
 	with open(config_file_path, "w") as file:
 		json.dump(config, file, indent=4)
 
-	print(f"{config_file_path} created successfully!")
+	#print(f"{config_file_path} created successfully!")
+	logging.info(f'Created config file at {config_file_path}!')
 
 '''
 ==============================================
@@ -182,7 +191,7 @@ def config():
 	
 	# Set the path of config file to
 	# /HOME/USER/.config/inopy/config.json
-	config_path = os.path.join(os.environ['HOME'], '.config/inopy')
+	config_path = os.path.join(os.environ['HOME'], '.inopy/config')
 	config_file = 'config.json'
 	config_file_path = os.path.join(config_path, config_file)
 	

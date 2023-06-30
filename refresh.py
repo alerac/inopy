@@ -58,6 +58,11 @@
 
 import requests
 import json
+import logging
+from logs import LogFile
+
+# Set logs file
+log_file = LogFile()
 
 def refresh(config_path, endpoint, client_id, client_secret, refresh_token):
 	headers = {"Content-type": "application/x-www-form-urlencoded"}
@@ -72,10 +77,10 @@ def refresh(config_path, endpoint, client_id, client_secret, refresh_token):
 	response = requests.post(endpoint, data=payload, headers=headers)
 	
 	if response.status_code == 200:
-		print("Request was successful.")
+		logging.info("Request was successful. Token was refreshed...")
 	
 	else:
-		print("Request failed with status code:", response.status_code)
+		logging.debug(f'Request failed with status code: {response.status_code}')
 	
 	data = json.loads(response.text)
 
